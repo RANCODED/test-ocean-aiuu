@@ -1,0 +1,6 @@
+{
+  "name": "OceanAiUU",
+  "description": "Multi-country, multi-language seafood traceability and anti-IUU fishing mobile platform from at-sea haul logging to export verification.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

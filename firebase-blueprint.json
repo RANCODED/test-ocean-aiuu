@@ -1,0 +1,139 @@
+{
+  "entities": {
+    "Vessel": {
+      "title": "Vessel",
+      "description": "Registered fishing vessel with permit, gear type, and co-ownership split.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID" },
+        "name": { "type": "string", "description": "Vessel name" },
+        "registrationNo": { "type": "string", "description": "National or IMO registration number" },
+        "countryCode": { "type": "string", "description": "ISO-3 country code", "enum": ["IDN", "ECU", "MAR"] },
+        "gearType": { "type": "string", "description": "Authorized fishing gear" },
+        "licenseStatus": { "type": "string", "enum": ["ACTIVE", "EXPIRING", "EXPIRED"] },
+        "licenseExpiry": { "type": "string", "description": "ISO date string for permit expiry" },
+        "coOwnerSplitPct": { "type": "integer", "description": "Owner catch-share percentage 0-100" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "name", "registrationNo", "countryCode", "gearType", "licenseStatus", "licenseExpiry", "coOwnerSplitPct", "createdAt", "updatedAt"]
+    },
+    "Trip": {
+      "title": "Trip",
+      "description": "Fishing voyage connecting at-sea logging, landing closure, and ministry inspection.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "vesselId": { "type": "string" },
+        "vesselName": { "type": "string" },
+        "countryCode": { "type": "string", "enum": ["IDN", "ECU", "MAR"] },
+        "captainName": { "type": "string" },
+        "crewCount": { "type": "integer" },
+        "departurePort": { "type": "string" },
+        "faoZone": { "type": "string" },
+        "gearType": { "type": "string" },
+        "status": { "type": "string", "enum": ["AT_SEA", "LANDED", "VERIFIED", "FLAGGED"] },
+        "unloadedPort": { "type": "string" },
+        "unloadedWeightKg": { "type": "number" },
+        "declaredWeightKg": { "type": "number" },
+        "discrepancyPct": { "type": "number" },
+        "iuuRiskLevel": { "type": "string", "enum": ["NONE", "LOW", "MEDIUM", "HIGH"] },
+        "iuuSummary": { "type": "string" },
+        "certificateCode": { "type": "string" },
+        "auditNotes": { "type": "string" },
+        "syncPending": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "vesselId", "vesselName", "countryCode", "captainName", "crewCount", "departurePort", "faoZone", "gearType", "status", "declaredWeightKg", "iuuRiskLevel", "syncPending", "createdAt", "updatedAt"]
+    },
+    "Haul": {
+      "title": "Haul",
+      "description": "Individual haul or at-sea activity entry attributed to a crew member with GPS lock.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "tripId": { "type": "string" },
+        "haulNumber": { "type": "integer" },
+        "speciesCode": { "type": "string" },
+        "speciesName": { "type": "string" },
+        "scientificName": { "type": "string" },
+        "cratesCount": { "type": "integer" },
+        "weightKg": { "type": "number" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "faoZone": { "type": "string" },
+        "zoneAlert": { "type": "boolean" },
+        "loggedBy": { "type": "string" },
+        "eventType": { "type": "string", "enum": ["CATCH", "BYCATCH_RELEASE", "GEAR_CHANGE", "TRANSSHIPMENT", "WEATHER_DELAY"] },
+        "aiVerified": { "type": "boolean" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "tripId", "haulNumber", "speciesCode", "speciesName", "scientificName", "cratesCount", "weightKg", "latitude", "longitude", "faoZone", "zoneAlert", "loggedBy", "eventType", "aiVerified", "createdAt", "updatedAt"]
+    },
+    "ProcessorLot": {
+      "title": "ProcessorLot",
+      "description": "Cold-chain processing and export lot linked to a verified trip.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "lotCode": { "type": "string" },
+        "tripId": { "type": "string" },
+        "vesselName": { "type": "string" },
+        "countryCode": { "type": "string", "enum": ["IDN", "ECU", "MAR"] },
+        "speciesCode": { "type": "string" },
+        "speciesName": { "type": "string" },
+        "faoZone": { "type": "string" },
+        "inputWeightKg": { "type": "number" },
+        "yieldWeightKg": { "type": "number" },
+        "coldChainTempC": { "type": "number" },
+        "processorName": { "type": "string" },
+        "certificateCode": { "type": "string" },
+        "gdstCompliant": { "type": "boolean" },
+        "exportDestination": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "lotCode", "tripId", "vesselName", "countryCode", "speciesCode", "speciesName", "faoZone", "inputWeightKg", "yieldWeightKg", "coldChainTempC", "processorName", "certificateCode", "gdstCompliant", "exportDestination", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable append-only audit trail entry for compliance and governance.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "actorName": { "type": "string" },
+        "action": { "type": "string" },
+        "entityType": { "type": "string" },
+        "entityId": { "type": "string" },
+        "details": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "actorName", "action", "entityType", "entityId", "details", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/vessels/{vesselId}": {
+      "schema": { "$ref": "#/entities/Vessel" },
+      "description": "User-scoped vessel and license registry"
+    },
+    "/users/{userId}/trips/{tripId}": {
+      "schema": { "$ref": "#/entities/Trip" },
+      "description": "User-scoped fishing trips and landing records"
+    },
+    "/users/{userId}/trips/{tripId}/hauls/{haulId}": {
+      "schema": { "$ref": "#/entities/Haul" },
+      "description": "At-sea haul and activity records inside a trip"
+    },
+    "/users/{userId}/lots/{lotId}": {
+      "schema": { "$ref": "#/entities/ProcessorLot" },
+      "description": "Processor cold-chain lots and GDST export traceability records"
+    },
+    "/users/{userId}/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable append-only audit trail"
+    }
+  }
+}

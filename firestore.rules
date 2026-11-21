@@ -1,0 +1,206 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HARDENED HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidCountry(code) {
+      return code in ['IDN', 'ECU', 'MAR'];
+    }
+
+    // --- ENTITY VALIDATION BLUEPRINTS ---
+    function isValidVessel(data, userId) {
+      return data.userId == userId &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 60 &&
+             data.registrationNo is string && data.registrationNo.size() >= 3 && data.registrationNo.size() <= 32 &&
+             isValidCountry(data.countryCode) &&
+             data.gearType is string && data.gearType.size() >= 2 && data.gearType.size() <= 40 &&
+             data.licenseStatus in ['ACTIVE', 'EXPIRING', 'EXPIRED'] &&
+             data.licenseExpiry is string && data.licenseExpiry.size() >= 4 && data.licenseExpiry.size() <= 20 &&
+             data.coOwnerSplitPct is int && data.coOwnerSplitPct >= 0 && data.coOwnerSplitPct <= 100 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidTrip(data, userId) {
+      return data.userId == userId &&
+             isValidId(data.vesselId) &&
+             data.vesselName is string && data.vesselName.size() >= 2 && data.vesselName.size() <= 60 &&
+             isValidCountry(data.countryCode) &&
+             data.captainName is string && data.captainName.size() >= 2 && data.captainName.size() <= 60 &&
+             data.crewCount is int && data.crewCount >= 1 && data.crewCount <= 100 &&
+             data.departurePort is string && data.departurePort.size() >= 2 && data.departurePort.size() <= 60 &&
+             data.faoZone is string && data.faoZone.size() >= 2 && data.faoZone.size() <= 40 &&
+             data.gearType is string && data.gearType.size() >= 2 && data.gearType.size() <= 40 &&
+             data.status in ['AT_SEA', 'LANDED', 'VERIFIED', 'FLAGGED'] &&
+             data.declaredWeightKg is number && data.declaredWeightKg >= 0 && data.declaredWeightKg <= 1000000 &&
+             data.iuuRiskLevel in ['NONE', 'LOW', 'MEDIUM', 'HIGH'] &&
+             data.syncPending is bool &&
+             (!('unloadedPort' in data) || (data.unloadedPort is string && data.unloadedPort.size() <= 60)) &&
+             (!('unloadedWeightKg' in data) || (data.unloadedWeightKg is number && data.unloadedWeightKg >= 0 && data.unloadedWeightKg <= 1000000)) &&
+             (!('discrepancyPct' in data) || (data.discrepancyPct is number && data.discrepancyPct >= 0 && data.discrepancyPct <= 1000)) &&
+             (!('iuuSummary' in data) || (data.iuuSummary is string && data.iuuSummary.size() <= 600)) &&
+             (!('certificateCode' in data) || (data.certificateCode is string && data.certificateCode.size() <= 64)) &&
+             (!('auditNotes' in data) || (data.auditNotes is string && data.auditNotes.size() <= 400)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidHaul(data, userId, tripId) {
+      return data.userId == userId &&
+             data.tripId == tripId &&
+             data.haulNumber is int && data.haulNumber >= 1 && data.haulNumber <= 1000 &&
+             data.speciesCode is string && data.speciesCode.size() >= 2 && data.speciesCode.size() <= 16 &&
+             data.speciesName is string && data.speciesName.size() >= 2 && data.speciesName.size() <= 80 &&
+             data.scientificName is string && data.scientificName.size() >= 2 && data.scientificName.size() <= 80 &&
+             data.cratesCount is int && data.cratesCount >= 0 && data.cratesCount <= 10000 &&
+             data.weightKg is number && data.weightKg >= 0 && data.weightKg <= 200000 &&
+             data.latitude is number && data.latitude >= -90 && data.latitude <= 90 &&
+             data.longitude is number && data.longitude >= -180 && data.longitude <= 180 &&
+             data.faoZone is string && data.faoZone.size() >= 2 && data.faoZone.size() <= 40 &&
+             data.zoneAlert is bool &&
+             data.loggedBy is string && data.loggedBy.size() >= 2 && data.loggedBy.size() <= 60 &&
+             data.eventType in ['CATCH', 'BYCATCH_RELEASE', 'GEAR_CHANGE', 'TRANSSHIPMENT', 'WEATHER_DELAY'] &&
+             data.aiVerified is bool &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 300)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidProcessorLot(data, userId) {
+      return data.userId == userId &&
+             data.lotCode is string && data.lotCode.size() >= 4 && data.lotCode.size() <= 40 &&
+             isValidId(data.tripId) &&
+             data.vesselName is string && data.vesselName.size() >= 2 && data.vesselName.size() <= 60 &&
+             isValidCountry(data.countryCode) &&
+             data.speciesCode is string && data.speciesCode.size() >= 2 && data.speciesCode.size() <= 16 &&
+             data.speciesName is string && data.speciesName.size() >= 2 && data.speciesName.size() <= 80 &&
+             data.faoZone is string && data.faoZone.size() >= 2 && data.faoZone.size() <= 40 &&
+             data.inputWeightKg is number && data.inputWeightKg > 0 && data.inputWeightKg <= 1000000 &&
+             data.yieldWeightKg is number && data.yieldWeightKg >= 0 && data.yieldWeightKg <= 1000000 &&
+             data.coldChainTempC is number && data.coldChainTempC >= -60 && data.coldChainTempC <= 25 &&
+             data.processorName is string && data.processorName.size() >= 2 && data.processorName.size() <= 80 &&
+             data.certificateCode is string && data.certificateCode.size() >= 4 && data.certificateCode.size() <= 64 &&
+             data.gdstCompliant is bool &&
+             data.exportDestination is string && data.exportDestination.size() >= 2 && data.exportDestination.size() <= 80 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAuditLog(data, userId) {
+      return data.userId == userId &&
+             data.actorName is string && data.actorName.size() >= 2 && data.actorName.size() <= 60 &&
+             data.action is string && data.action.size() >= 2 && data.action.size() <= 60 &&
+             data.entityType is string && data.entityType.size() >= 2 && data.entityType.size() <= 40 &&
+             isValidId(data.entityId) &&
+             data.details is string && data.details.size() >= 2 && data.details.size() <= 400 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    // --- COLLECTION RULES ---
+    match /users/{userId} {
+
+      match /vessels/{vesselId} {
+        allow get: if isOwner(userId) && isValidId(vesselId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(vesselId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'registrationNo', 'countryCode', 'gearType', 'licenseStatus', 'licenseExpiry', 'coOwnerSplitPct', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'registrationNo', 'countryCode', 'gearType', 'licenseStatus', 'licenseExpiry', 'coOwnerSplitPct', 'createdAt', 'updatedAt']) &&
+                         isValidVessel(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(vesselId) &&
+                         isValidVessel(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'registrationNo', 'countryCode', 'gearType', 'licenseStatus', 'licenseExpiry', 'coOwnerSplitPct', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(vesselId);
+      }
+
+      match /trips/{tripId} {
+        allow get: if isOwner(userId) && isValidId(tripId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(tripId) &&
+                         incoming().keys().hasAll(['userId', 'vesselId', 'vesselName', 'countryCode', 'captainName', 'crewCount', 'departurePort', 'faoZone', 'gearType', 'status', 'declaredWeightKg', 'iuuRiskLevel', 'syncPending', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'vesselId', 'vesselName', 'countryCode', 'captainName', 'crewCount', 'departurePort', 'faoZone', 'gearType', 'status', 'unloadedPort', 'unloadedWeightKg', 'declaredWeightKg', 'discrepancyPct', 'iuuRiskLevel', 'iuuSummary', 'certificateCode', 'auditNotes', 'syncPending', 'createdAt', 'updatedAt']) &&
+                         isValidTrip(incoming(), userId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/vessels/$(incoming().vesselId));
+        allow update: if isOwner(userId) && isValidId(tripId) &&
+                         isValidTrip(incoming(), userId) &&
+                         existing().status != 'VERIFIED' &&
+                         incoming().userId == existing().userId &&
+                         incoming().vesselId == existing().vesselId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'unloadedPort', 'unloadedWeightKg', 'declaredWeightKg', 'discrepancyPct', 'iuuRiskLevel', 'iuuSummary', 'certificateCode', 'auditNotes', 'syncPending', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(tripId) && existing().status == 'AT_SEA';
+
+        match /hauls/{haulId} {
+          allow get: if isOwner(userId) && isValidId(tripId) && isValidId(haulId);
+          allow list: if isOwner(userId) && isValidId(tripId);
+          allow create: if isOwner(userId) && isValidId(tripId) && isValidId(haulId) &&
+                           incoming().keys().hasAll(['userId', 'tripId', 'haulNumber', 'speciesCode', 'speciesName', 'scientificName', 'cratesCount', 'weightKg', 'latitude', 'longitude', 'faoZone', 'zoneAlert', 'loggedBy', 'eventType', 'aiVerified', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'tripId', 'haulNumber', 'speciesCode', 'speciesName', 'scientificName', 'cratesCount', 'weightKg', 'latitude', 'longitude', 'faoZone', 'zoneAlert', 'loggedBy', 'eventType', 'aiVerified', 'notes', 'createdAt', 'updatedAt']) &&
+                           isValidHaul(incoming(), userId, tripId) &&
+                           exists(/databases/$(database)/documents/users/$(userId)/trips/$(tripId));
+          allow update: if isOwner(userId) && isValidId(tripId) && isValidId(haulId) &&
+                           isValidHaul(incoming(), userId, tripId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().tripId == existing().tripId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['cratesCount', 'weightKg', 'aiVerified', 'notes', 'updatedAt']);
+          allow delete: if isOwner(userId) && isValidId(tripId) && isValidId(haulId);
+        }
+      }
+
+      match /lots/{lotId} {
+        allow get: if isOwner(userId) && isValidId(lotId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(lotId) &&
+                         incoming().keys().hasAll(['userId', 'lotCode', 'tripId', 'vesselName', 'countryCode', 'speciesCode', 'speciesName', 'faoZone', 'inputWeightKg', 'yieldWeightKg', 'coldChainTempC', 'processorName', 'certificateCode', 'gdstCompliant', 'exportDestination', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'lotCode', 'tripId', 'vesselName', 'countryCode', 'speciesCode', 'speciesName', 'faoZone', 'inputWeightKg', 'yieldWeightKg', 'coldChainTempC', 'processorName', 'certificateCode', 'gdstCompliant', 'exportDestination', 'createdAt', 'updatedAt']) &&
+                         isValidProcessorLot(incoming(), userId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/trips/$(incoming().tripId));
+        allow update: if isOwner(userId) && isValidId(lotId) &&
+                         isValidProcessorLot(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().tripId == existing().tripId &&
+                         incoming().lotCode == existing().lotCode &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['yieldWeightKg', 'coldChainTempC', 'gdstCompliant', 'exportDestination', 'updatedAt']);
+        allow delete: if false;
+      }
+
+      match /auditLogs/{logId} {
+        allow get: if isOwner(userId) && isValidId(logId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(logId) &&
+                         incoming().keys().hasAll(['userId', 'actorName', 'action', 'entityType', 'entityId', 'details', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'actorName', 'action', 'entityType', 'entityId', 'details', 'createdAt']) &&
+                         isValidAuditLog(incoming(), userId);
+        allow update, delete: if false;
+      }
+    }
+  }
+}
